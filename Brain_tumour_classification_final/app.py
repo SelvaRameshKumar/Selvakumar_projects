@@ -1,4 +1,4 @@
-import os
+import os    
 import streamlit as st
 
 st.write("CURRENT WORKING DIRECTORY:")
@@ -69,3 +69,4 @@ if uploaded_file is not None:
     st.subheader("Class Probabilities")
     for i, cls in enumerate(CLASSES):
         st.write(f"{cls}: {probs[i].item():.4f}")
+
