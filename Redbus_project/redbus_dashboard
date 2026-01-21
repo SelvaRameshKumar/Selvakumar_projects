@@ -1,0 +1,71 @@
+import streamlit as st
+import sqlite3
+import pandas as pd
+
+# ---------------- Connect to SQLite DB ----------------
+DB_FILE = "redbus.db"
+conn = sqlite3.connect(DB_FILE)
+
+# ---------------- Load data ----------------
+df = pd.read_sql_query("SELECT * FROM bus_routes", conn)
+
+# Close connection after reading
+conn.close()
+
+# ---------------- Streamlit Page Setup ----------------
+st.set_page_config(page_title="Redbus Dashboard", layout="wide")
+st.title("Redbus Bus Data Dashboard")
+
+# ---------------- Filters ----------------
+with st.sidebar:
+    st.header("Filters")
+
+    # Route filter
+    routes = df['route_name'].dropna().unique().tolist()
+    selected_route = st.selectbox("Select Route", ["All"] + routes)
+
+    # Bus Type filter
+    bustypes = df['bustype'].dropna().unique().tolist()
+    selected_bustype = st.selectbox("Select Bus Type", ["All"] + bustypes)
+
+    # Price filter
+    min_price = float(df['price'].min() or 0)
+    max_price = float(df['price'].max() or 10000)
+    price_range = st.slider("Select Price Range", min_price, max_price, (min_price, max_price))
+
+    # Star Rating filter
+    min_rating = float(df['star_rating'].min() or 0)
+    max_rating = float(df['star_rating'].max() or 5)
+    rating_range = st.slider("Select Star Rating", min_rating, max_rating, (min_rating, max_rating))
+
+    # Seats Available filter
+    min_seats = int(df['seats_available'].min() or 0)
+    max_seats = int(df['seats_available'].max() or 50)
+    seats_range = st.slider("Select Seats Available", min_seats, max_seats, (min_seats, max_seats))
+
+# ---------------- Apply Filters ----------------
+filtered_df = df.copy()
+
+if selected_route != "All":
+    filtered_df = filtered_df[filtered_df['route_name'] == selected_route]
+
+if selected_bustype != "All":
+    filtered_df = filtered_df[filtered_df['bustype'] == selected_bustype]
+
+filtered_df = filtered_df[
+    (filtered_df['price'] >= price_range[0]) & (filtered_df['price'] <= price_range[1])
+]
+
+filtered_df = filtered_df[
+    (filtered_df['star_rating'] >= rating_range[0]) & (filtered_df['star_rating'] <= rating_range[1])
+]
+
+filtered_df = filtered_df[
+    (filtered_df['seats_available'] >= seats_range[0]) & (filtered_df['seats_available'] <= seats_range[1])
+]
+
+# ---------------- Display Results ----------------
+st.write(f"Total buses found: {len(filtered_df)}")
+st.dataframe(filtered_df[['route_name', 'busname', 'bustype', 'departing_time',
+                          'duration', 'reaching_time', 'star_rating', 'price', 'seats_available']],
+             use_container_width=True)
