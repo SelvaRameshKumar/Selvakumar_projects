@@ -1,0 +1,95 @@
+import os
+import pandas as pd
+import sqlite3
+
+# ---------------- Settings ----------------
+CSV_FOLDER = "excel_files"  # your folder with CSV files
+DB_FILE = "redbus.db"
+
+# ---------------- Connect to SQLite ----------------
+conn = sqlite3.connect(DB_FILE)
+cursor = conn.cursor()
+
+# ---------------- Create Table ----------------
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS bus_routes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    route_name TEXT,
+    route_link TEXT,
+    busname TEXT,
+    bustype TEXT,
+    departing_time TEXT,
+    duration TEXT,
+    reaching_time TEXT,
+    star_rating REAL,
+    price REAL,
+    seats_available INTEGER
+)
+""")
+conn.commit()
+
+total_records = 0
+
+# ---------------- Process CSV Files ----------------
+for filename in os.listdir(CSV_FOLDER):
+    if filename.endswith(".csv"):
+        file_path = os.path.join(CSV_FOLDER, filename)
+        print(f"\nReading file: {file_path}")
+
+        try:
+            df = pd.read_csv(file_path)
+        except Exception as e:
+            print(f"⚠️ Error reading {filename}: {e}")
+            continue
+
+        print("Columns found:", df.columns.tolist())
+        print("Rows found:", len(df))
+
+        if len(df) == 0:
+            print("⚠️ File is empty, skipping...")
+            continue
+
+        # ---------------- Normalize Columns ----------------
+        df.columns = [str(col).strip() for col in df.columns]
+
+        # Rename to match DB table
+        df = df.rename(columns={
+            "Route Name": "route_name",
+            "Route Link": "route_link",
+            "Bus Name": "busname",
+            "Bus Type": "bustype",
+            "Departure Time": "departing_time",
+            "Duration": "duration",
+            "Arrival Time": "reaching_time",
+            "Star Rating": "star_rating",
+            "Price": "price",
+            "Seats Available": "seats_available"
+        })
+
+        # Fill missing numeric values
+        df = df.fillna({
+            "star_rating": 0,
+            "price": 0,
+            "seats_available": 0
+        })
+
+        # Keep only required columns
+        required_cols = [
+            "route_name", "route_link", "busname", "bustype",
+            "departing_time", "duration", "reaching_time",
+            "star_rating", "price", "seats_available"
+        ]
+        df = df[required_cols]
+
+        # Insert into DB
+        df.to_sql("bus_routes", conn, if_exists="append", index=False)
+        total_records += len(df)
+        print(f"✅ Inserted {len(df)} records from {filename}")
+
+# ---------------- Close DB ----------------
+conn.close()
+
+print("\n✅ DATABASE CREATED & DATA INSERTED")
+print(f"✅ TOTAL RECORDS: {total_records}")
+
+
